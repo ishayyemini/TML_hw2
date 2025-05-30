@@ -1,0 +1,10 @@
+Training standard model...
+Time (in seconds) to complete standard training: 221.6593
+Adversarially training a model...
+Time (in seconds) to complete free adversarial training: 680.0594
+Model accuracy:
+	- standard    : 0.9180
+	- adv_trained : 0.8957
+Success rate of untargeted white-box PGD:
+	- standard  : 0.8985
+	- adv_trained: 0.2658

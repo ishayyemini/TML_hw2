@@ -7,7 +7,7 @@ from scipy.stats import norm
 from statsmodels.stats.proportion import proportion_confint
 
 def free_adv_train(model, data_tr, criterion, optimizer, lr_scheduler, \
-                   eps, device, m=4, epochs=100, batch_size=128, dl_nw=10):
+                   eps, device, m=7, epochs=100, batch_size=128, dl_nw=10):
     """
     Free adversarial training, per Shafahi et al.'s work.
     Arguments:
@@ -34,18 +34,47 @@ def free_adv_train(model, data_tr, criterion, optimizer, lr_scheduler, \
                            num_workers=dl_nw)
                            
 
-    # init delta (adv. perturbation) - FILL ME
-    
+    # init delta (adv. perturbation)
+    delta = torch.zeros((batch_size, *next(iter(loader_tr))[0].shape[1:]), device=device)
 
-    # total number of updates - FILL ME
-    
+    # total number of updates
+    total_updates = epochs * len(loader_tr)
 
     # when to update lr
     scheduler_step_iters = int(np.ceil(len(data_tr)/batch_size))
 
-    # train - FILLE ME
-    
-    
+    # train
+    model.train()
+    for epoch in range(epochs):
+        for i, (inputs, targets) in enumerate(loader_tr):
+            inputs, targets = inputs.to(device), targets.to(device)
+
+            for _ in range(m):
+                inputs.requires_grad = True
+
+                # apply adv perturbation
+                inputs_adv = inputs + delta[:inputs.shape[0]]
+                inputs_adv = torch.clamp(inputs_adv, 0, 1)
+
+                # forward
+                outputs = model(inputs_adv)
+                loss = criterion(outputs, targets)
+
+                # backward
+                optimizer.zero_grad()
+                loss.backward()
+
+                # optimize
+                optimizer.step()
+
+                # update adv perturbation
+                delta[:inputs.shape[0]] = delta[:inputs.shape[0]] + eps * inputs.grad.sign()
+                delta = torch.clamp(delta, -eps, eps)
+
+            # update learning rate
+            if (i + 1) % scheduler_step_iters == 0:
+                lr_scheduler.step()
+
     # done
     return model
 
