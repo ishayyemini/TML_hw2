@@ -58,7 +58,12 @@ def run_evaluation(sigma):
 def plot_radii(radii):
     x = [] # radius
     y = [] # accuracy
-    # derive x and y from the certified radii - FILL ME
+    # derive x and y from the certified radii
+    thresholds = np.linspace(0, max(radii), 100)
+
+    for t in thresholds:
+        x.append(t)
+        y.append(np.mean(np.array(radii) >= t))
     
     # plot
     plt.plot(x,y)

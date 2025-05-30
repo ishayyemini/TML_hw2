@@ -99,9 +99,29 @@ class SmoothedModel():
         array counting how many times each class was assigned the
         max confidence).
         """
-        # FILL ME
-        pass
-        
+        if len(x.shape) == 4:
+            x = x.squeeze(0)
+
+        # init counts
+        sample_output = self.model(x.unsqueeze(0))
+        counts = np.zeros(sample_output.shape[1], dtype=np.int32)
+
+        noise = torch.randn(n, *x.shape, device=x.device) * self.sigma
+        noise_batches = noise.split(batch_size)
+
+        for noise in noise_batches:
+            # classify
+            with torch.no_grad():
+                outputs = self.model(x + noise)
+                _, preds = torch.max(outputs, dim=1)
+
+            # update counts
+            for pred in preds.cpu().numpy():
+                counts[pred] += 1
+
+        return counts
+
+
     def certify(self, x, n0, n, alpha, batch_size):
         """
         Arguments:
@@ -118,11 +138,19 @@ class SmoothedModel():
         - certified radius (0. in case of abstaining)
         """
         
-        # find prediction (top class c) - FILL ME
+        # find prediction (top class c)
+        counts_0 = self._sample_under_noise(x, n0, batch_size)
+        c = np.argmax(counts_0)
         
-        
-        # compute lower bound on p_c - FILL ME
-        
+        # compute lower bound on p_c
+        counts = self._sample_under_noise(x, n, batch_size)
+        p_a, _ = proportion_confint(counts[c], n, alpha=2 * alpha, method='beta')
+
+        if p_a <= 0.5:
+            # abstain
+            return self.ABSTAIN, 0.
+
+        radius = self.sigma * norm.ppf(p_a)
 
         # done
         return c, radius
